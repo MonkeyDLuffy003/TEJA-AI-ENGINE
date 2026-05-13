@@ -1,0 +1,71 @@
+# ============================================
+# T.E.J.A AI INDUSTRIES
+# teja_pipeline.yml — V1
+# GitHub Actions automation workflow
+# ============================================
+
+name: TEJA Video Pipeline
+
+on:
+  # Run manually from GitHub Actions tab
+  workflow_dispatch:
+    inputs:
+      topic:
+        description: 'Video topic or idea'
+        required: true
+        default: 'A story about never giving up'
+      channel:
+        description: 'Channel type'
+        required: true
+        default: 'storytelling'
+        type: choice
+        options:
+          - storytelling
+          - ai_journey
+
+jobs:
+  generate-video:
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v3
+
+      - name: Set up Python
+        uses: actions/setup-python@v4
+        with:
+          python-version: '3.10'
+
+      - name: Install system dependencies
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y ffmpeg
+
+      - name: Install Python dependencies
+        run: |
+          pip install -r requirements.txt
+
+      - name: Create outputs folder
+        run: mkdir -p outputs
+
+      - name: Run TEJA Engine Pipeline
+        env:
+          GEMINI_API_KEY: ${{ secrets.GEMINI_API_KEY }}
+          GCS_BUCKET_NAME: ${{ secrets.GCS_BUCKET_NAME }}
+          GOOGLE_APPLICATION_CREDENTIALS_JSON: ${{ secrets.GCS_CREDENTIALS_JSON }}
+        run: |
+          # Write GCS credentials from secret to file
+          echo "$GOOGLE_APPLICATION_CREDENTIALS_JSON" > gcs_credentials.json
+
+          # Run pipeline with inputs
+          python -c "
+          from main import run_pipeline
+          run_pipeline('${{ github.event.inputs.topic }}', channel='${{ github.event.inputs.channel }}')
+          "
+
+      - name: Upload video as artifact
+        uses: actions/upload-artifact@v3
+        with:
+          name: teja-video-output
+          path: outputs/*.mp4
+          retention-days: 7
